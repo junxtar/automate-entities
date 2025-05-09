@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th=http://www.thymeleaf.org>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Table Migration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script type="text/javascript" th:src="@{/js/diff_match_patch.js}"></script>
+</head>
+<body>
+<nav class="navbar navbar-light bg-light">
+    <div class="container-fluid">
+        <form class="d-flex" style="width: 25%; margin: 2% 2% 2% 15%;">
+            <input
+                    type="text"
+                    id="searchBox"
+                    class="form-control mb-3"
+                    placeholder="Search"
+                    oninput="filterTables()"
+                    aria-label="Search box"
+            >
+        </form>
+    </div>
+</nav>
+
+<div class="flex-container" style="width: 90%; margin: 3% 3% 3% 13%; display: flex">
+    <div style="width: 25%; margin: 4%;">
+        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 5%;">
+            <input class="form-check-input  me-2" type="checkbox" value="" id="flexCheckDefault"
+                   onclick="toggleSelectAll(this)">
+            <label style="cursor: pointer;" class="form-check-label" for="flexCheckDefault">
+                AllSelect
+            </label>
+        </div>
+        <div style="overflow: auto; height: 500px">
+            <ul id="tableList" class="list-group">
+                <li th:each="table : ${tables}" class="list-group-item d-flex align-items-center"
+                    onclick="toggleCheckbox(this)">
+                    <label style="cursor: pointer; width: 100%;display:flex;justify-content: start;">
+                        <input type="checkbox" class="form-check-input me-2"/>
+                        <div style="width:100%;display: flex;justify-content: space-between;padding: 0 0 0 11px;">
+                            <span th:text="${table.tableName}"></span>
+                            <span th:text="${table.comment}"></span>
+                        </div>
+                    </label>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div style="margin: 15% 1% 1% 3%">
+        <div id="selectCount">
+            <p class="fw-bolder"></p>
+        </div>
+        <button
+                style="width: 200px"
+                class="btn btn-outline-primary"
+                onclick="handleParsing()">
+            Parsing
+        </button>
+    </div>
+    <div style="width: 25%; margin: 4%; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;">
+        <p class="fw-bolder" style="margin-bottom: 2%">Selected Table</p>
+        <div style="overflow: auto; height: 500px; width: 100%;">
+            <ul id="selectTableList" class="list-group"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    let originTables = [];
+    let tables = [];
+    let selectedTables = new Set();
+
+    function toggleSelectAll(item) {
+        if (item.checked) {
+            tables.forEach(table => {
+                selectedTables.add(JSON.stringify(table));
+            });
+        } else {
+            tables.forEach(table => {
+                selectedTables.delete(JSON.stringify(table));
+            });
+        }
+        renderTables();
+        renderSelectCount();
+        renderSelectedTables();
+    }
+
+    function renderSelectedTables() {
+        const tableList = document.getElementById('selectTableList');
+        tableList.innerHTML = "";
+
+        selectedTables.forEach((tableStr) => {
+            const table = JSON.parse(tableStr);
+            const li = document.createElement("li");
+            li.className = "list-group-item d-flex align-items-center";
+
+            const div = document.createElement("div");
+            div.style.width = "100%";
+            div.style.display = "flex";
+            div.style.justifyContent = "space-between";
+            div.style.padding = "0 0 0 11px";
+
+            const tableNameSpan = document.createElement("span");
+            tableNameSpan.textContent = table.tableName;
+
+            const commentSpan = document.createElement("span");
+            commentSpan.textContent = table.comment;
+
+            div.appendChild(tableNameSpan);
+            div.appendChild(commentSpan);
+            li.appendChild(div);
+            tableList.appendChild(li);
+        });
+    }
+
+    function populateOriginTables() {
+        const tableList = document.getElementById("tableList");
+        const listItems = tableList.querySelectorAll("li label div");
+
+        originTables = Array.from(listItems).map(div => ({
+            tableName: div.querySelector("span:nth-child(1)").textContent.trim(),
+            comment: div.querySelector("span:nth-child(2)").textContent.trim()
+        }));
+
+        tables = [...originTables];
+    }
+
+    function filterTables() {
+        const searchValue = document.getElementById("searchBox").value.toLowerCase();
+        const elementById = document.getElementById("flexCheckDefault");
+        elementById.checked = false;
+
+        tables = originTables.filter((table) =>
+            table.tableName.toLowerCase().startsWith(searchValue)
+        );
+
+        renderTables();
+    }
+
+    function renderTables() {
+        const tableList = document.getElementById('tableList');
+        tableList.innerHTML = "";
+
+        tables.forEach((table) => {
+            const isSelected = Array.from(selectedTables).some(selected => {
+                const selectedTable = JSON.parse(selected);
+                return selectedTable.tableName === table.tableName && selectedTable.comment === table.comment;
+            });
+
+            const li = document.createElement("li");
+            li.className = "list-group-item d-flex align-items-center";
+            li.onclick = () => toggleCheckbox(li);
+
+            const label = document.createElement("label");
+            label.style.cursor = "pointer";
+            label.style.width = "100%";
+            label.style.display = "flex";
+            label.style.justifyContent = "start";
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.className = "form-check-input me-2";
+            checkbox.checked = isSelected;
+
+            const div = document.createElement("div");
+            div.style.width = "100%";
+            div.style.display = "flex";
+            div.style.justifyContent = "space-between";
+            div.style.padding = "0 0 0 11px";
+
+            const tableNameSpan = document.createElement("span");
+            tableNameSpan.textContent = table.tableName;
+
+            const commentSpan = document.createElement("span");
+            commentSpan.textContent = table.comment;
+
+            div.appendChild(tableNameSpan);
+            div.appendChild(commentSpan);
+            label.appendChild(checkbox);
+            label.appendChild(div);
+            li.appendChild(label);
+            tableList.appendChild(li);
+        });
+    }
+
+    function toggleCheckbox(element) {
+        const checkbox = element.querySelector("input[type='checkbox']");
+        checkbox.checked = !checkbox.checked;
+
+        const tableName = element.querySelector("span:nth-child(1)").textContent.trim();
+        const comment = element.querySelector("span:nth-child(2)").textContent.trim();
+        const tableEntry = {tableName, comment};
+
+        console.log(tableEntry);
+
+        if (checkbox.checked) {
+            selectedTables.add(JSON.stringify(tableEntry));
+            console.log(`Added: ${tableName} - ${comment}`);
+        } else {
+            selectedTables.delete(JSON.stringify(tableEntry));
+            console.log(`Removed: ${tableName} - ${comment}`);
+        }
+        renderSelectCount();
+        renderSelectedTables();
+    }
+
+    function renderSelectCount() {
+        let selectCount = document.getElementById("selectCount");
+        selectCount.innerHTML = "";
+        let p = document.createElement("p");
+        p.className = "fw-bolder";
+        p.textContent = "SelectCount: " + selectedTables.size.toString();
+        selectCount.append(p);
+
+    }
+
+    function handleParsing() {
+        const tableNameList = [];
+
+        selectedTables.forEach((entry) => {
+            const parsedEntry = JSON.parse(entry);
+            tableNameList.push(parsedEntry.tableName);
+        });
+        console.log(tableNameList);
+
+        fetch("/parsing", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                'Accept': 'application/octet-stream'
+            },
+            body: JSON.stringify({tableNameList})
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'migration_table.zip';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            })
+            .catch(error => {
+                console.error("Error:", error);
+            });
+    }
+
+    populateOriginTables();
+</script>
+
+</body>
+
+<!--<script>-->
+
+<!--    //-->
+<!--    var dmp = new diff_match_patch();-->
+<!--    $(function () {-->
+<!--        $("#button").click(function () {-->
+<!--            let value = $("#databaseName").val().toUpperCase();-->
+<!--            console.log($("#databaseName").val())-->
+<!--            $.ajax({-->
+<!--                type: `get`,-->
+<!--                url: `/test1/${value}`,-->
+<!--                success: function (result) {-->
+<!--                    $("#ddl").val(result[0]);-->
+<!--                    $("#entity").val(result[1]);-->
+<!--                    $("#oracle").val(result[2])-->
+<!--                    $("#class").val(result[3]);-->
+<!--                    $("#cols").val(result[4]);-->
+<!--                }-->
+<!--            })-->
+<!--        })-->
+<!--        $("#button2").click(function () {-->
+<!--            let value = $("#diffInput1").val().toUpperCase();-->
+<!--            console.log($("#diffInput1").val())-->
+<!--            $.ajax({-->
+<!--                type: `get`,-->
+<!--                url: `/diff/${value}`,-->
+<!--                success: function (result) {-->
+<!--                    $("#diff1").val(result[0]);-->
+<!--                }-->
+<!--            })-->
+<!--        })-->
+<!--        $("#button3").click(function () {-->
+<!--            let value = $("#diffInput2").val().toUpperCase();-->
+<!--            console.log($("#diffInput2").val())-->
+<!--            $.ajax({-->
+<!--                type: `get`,-->
+<!--                url: `/diff/${value}`,-->
+<!--                success: function (result) {-->
+<!--                    $("#diff2").val(result[0]);-->
+<!--                }-->
+<!--            })-->
+<!--        })-->
+<!--        $("#diffButton").click(function () {-->
+<!--            var diff1 = $("#diff1").val();-->
+<!--            var diff2 = $("#diff2").val();-->
+<!--            var d = dmp.diff_main(diff1, diff2);-->
+<!--            $("#result").html(dmp.diff_prettyHtml(d));-->
+
+<!--        })-->
+<!--        $("#parseButton").click(function () {-->
+<!--            let value = $("#origin").val();-->
+<!--            console.log($("#diffInput2").val())-->
+<!--            $.ajax({-->
+<!--                type: `post`,-->
+<!--                url: `/parse`,-->
+<!--                contentType: "application/json",-->
+<!--                data: value,-->
+<!--                success: function (result) {-->
+<!--                    $("#parse").val(result);-->
+<!--                    hljs.highlightBlock($("#parse"))-->
+
+<!--                }-->
+<!--            })-->
+<!--        })-->
+
+
+<!--    })-->
+
+<!--    // copy button-->
+<!--    const copyContent = () => {-->
+<!--        let text = $("#ddl").val();-->
+<!--        try {-->
+<!--            navigator.clipboard.writeText(text);-->
+<!--            console.log('Content copied to clipboard');-->
+<!--        } catch (err) {-->
+<!--            console.error('Failed to copy: ', err);-->
+<!--        }-->
+<!--    }-->
+<!--    const copyClass = () => {-->
+<!--        let text = $("#class").val();-->
+<!--        try {-->
+<!--            navigator.clipboard.writeText(text);-->
+<!--            console.log('Content copied to clipboard');-->
+<!--        } catch (err) {-->
+<!--            console.error('Failed to copy: ', err);-->
+<!--        }-->
+<!--    }-->
+
+<!--</script>-->
+</html>
