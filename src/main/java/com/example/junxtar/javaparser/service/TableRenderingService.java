@@ -12,11 +12,9 @@ import java.util.Map;
 @Service
 public class TableRenderingService {
 
-    private DataSource dataSource;
-    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     public TableRenderingService(DataSource dataSource) {
-        this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
     }
 
