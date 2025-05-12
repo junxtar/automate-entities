@@ -2,7 +2,7 @@ spring:
   application:
     name: javaparser
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: postgres
+    url: jdbc:oracle:thin:@localhost:1521:XE
+    username: root
     password: 1234
+    driver-class-name: oracle.jdbc.OracleDriver
